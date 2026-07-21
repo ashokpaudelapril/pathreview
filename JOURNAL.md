@@ -23,9 +23,9 @@ match, bringing review creation in line with the other endpoints.
 
 **Branch name:** fix/163-review-ownership-check
 
-**Setup confirmation:** [ ] App runs locally at localhost:5173
+**Setup confirmation:** [x] App runs locally at localhost:5173
 
-**Cohort ledger:** [ ] Issue added to cohort ledger
+**Cohort ledger:** [x] Issue added to cohort ledger
 
 **Is this right for me? — scope reasoning:**
 - Scope is small and well-bounded: the root cause lives in a single function
