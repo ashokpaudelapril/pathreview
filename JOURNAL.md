@@ -150,16 +150,34 @@ pre-existing-failures guidance.
 
 ### Check-in 2 (end of week)
 
-**PR link:** [link to your submitted pull request]
+**PR link:** https://github.com/ascherj/pathreview/pull/687
 
 **Branch:** fix/163-review-ownership-check
 
 **What you built:**
-[1–3 sentences summarizing what your fix does and how it works]
+`create_review()` in `core/services/review_service.py` now verifies the
+requesting user owns the target profile before creating a review, by
+reusing the existing scoped lookup `profile_service.get_profile(db,
+profile_id, user_id)` and raising `HTTPException(404)` when it returns
+`None`. This closes the IDOR vulnerability in issue #163, bringing
+`create_review()` in line with the ownership checks already used by
+`get_review()`/`list_reviews()` in the same file.
 
 **Tests added or updated:**
-[Which test files did you touch? What do they cover?]
+- `tests/integration/test_review_ownership.py` (added Week 8): end-to-end
+  reproduction test — registers two users, has one create a profile, and
+  asserts the other is rejected (404) when requesting a review against it.
+  Now passes (previously failed with 200).
+- `tests/unit/test_review_service.py`: added
+  `test_create_review_rejects_profile_not_owned_by_user` for the cross-user
+  case; updated the 6 existing `create_review` tests to mock the new
+  `get_profile` ownership lookup; added a `_patched_get_profile()` helper to
+  avoid duplicating mock setup; removed an unused `asyncio` import.
 
-**Self-review confirmation:** [ ] make check passes  [ ] make test-unit passes
+**Self-review confirmation:** [x] make check passes  [x] make test-unit passes
+*("Passes" here means this change introduces zero new failures — see the
+documented pre-existing lint/type/test debt in Check-in 1 and the PR
+description, per the course's pre-existing-failures guidance.)*
 
-**Draft PR feedback received from:** [name or Slack handle, or "none"]
+**Draft PR feedback received from:** none (requested in Slack; PR marked
+ready for review without a response by submission time)
