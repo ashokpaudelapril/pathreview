@@ -158,26 +158,39 @@ pre-existing-failures guidance.
 `create_review()` in `core/services/review_service.py` now verifies the
 requesting user owns the target profile before creating a review, by
 reusing the existing scoped lookup `profile_service.get_profile(db,
-profile_id, user_id)` and raising `HTTPException(404)` when it returns
-`None`. This closes the IDOR vulnerability in issue #163, bringing
-`create_review()` in line with the ownership checks already used by
-`get_review()`/`list_reviews()` in the same file.
+profile_id, user_id)`. This closes the IDOR vulnerability in issue #163,
+bringing `create_review()` in line with the ownership checks already used
+by `get_review()`/`list_reviews()` in the same file. After Copilot review
+feedback on the PR, revised the layering: `create_review()` now returns
+`None` (rather than raising `HTTPException` from the service layer), and
+`create_review_endpoint()` in `api/routes/reviews.py` translates that into
+a 404 — matching the pattern `get_review_endpoint` already uses.
 
 **Tests added or updated:**
 - `tests/integration/test_review_ownership.py` (added Week 8): end-to-end
   reproduction test — registers two users, has one create a profile, and
   asserts the other is rejected (404) when requesting a review against it.
-  Now passes (previously failed with 200).
+  Now passes (previously failed with 200); re-verified after the layering
+  revision above.
 - `tests/unit/test_review_service.py`: added
   `test_create_review_rejects_profile_not_owned_by_user` for the cross-user
-  case; updated the 6 existing `create_review` tests to mock the new
-  `get_profile` ownership lookup; added a `_patched_get_profile()` helper to
-  avoid duplicating mock setup; removed an unused `asyncio` import.
+  case (asserts `None` return, matching the revised layering); updated the
+  6 existing `create_review` tests to mock the new `get_profile` ownership
+  lookup; added a `_patched_get_profile()` helper to avoid duplicating mock
+  setup; removed an unused `asyncio` import and an unused `mock_review`
+  fixture (pre-existing dead code, surfaced while editing that test).
 
 **Self-review confirmation:** [x] make check passes  [x] make test-unit passes
 *("Passes" here means this change introduces zero new failures — see the
 documented pre-existing lint/type/test debt in Check-in 1 and the PR
 description, per the course's pre-existing-failures guidance.)*
 
-**Draft PR feedback received from:** none (requested in Slack; PR marked
-ready for review without a response by submission time)
+**Draft PR feedback received from:** No peer/mentor response in Slack by
+submission time. GitHub Copilot's automated review on PR #687 flagged 3
+issues after the PR was marked ready: (1) service layer raising
+`HTTPException` instead of returning `None` — fixed, see above; (2) an
+unused `mock_review` fixture parameter — fixed, see above; (3) excluding
+`tests/` from the local mypy pre-commit hook reduces local coverage —
+replied on the PR explaining this matches CI's own typecheck scope
+(`mypy api/ core/ ingestion/ rag/ agent/ safety/` never checked `tests/`
+either), so no coverage gap versus CI was introduced; left as-is.
