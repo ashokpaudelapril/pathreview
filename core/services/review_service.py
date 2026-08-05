@@ -3,7 +3,6 @@ from datetime import datetime
 from uuid import UUID
 
 import structlog
-from fastapi import HTTPException, status
 from sqlalchemy import and_, select
 
 from api.schemas.review import FeedbackSection
@@ -19,22 +18,14 @@ async def create_review(
     db,
     profile_id: UUID,
     user_id: UUID,
-) -> Review:
+) -> Review | None:
     """
     Create a new review with status="pending".
-    Raises 404 if the profile does not exist or does not belong to user_id.
+    Returns None if the profile does not exist or does not belong to user_id.
     """
     profile = await get_profile(db, profile_id, user_id)
     if profile is None:
-        log.warning(
-            "review_creation_profile_not_found",
-            profile_id=str(profile_id),
-            user_id=str(user_id),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found",
-        )
+        return None
 
     review = Review(
         profile_id=profile_id,

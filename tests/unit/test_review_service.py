@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
 
 from core.services.review_service import (
     create_review,
@@ -35,16 +34,6 @@ class TestReviewService:
         return session
 
     @pytest.fixture
-    def mock_review(self):
-        """Create a mock Review object."""
-        review = Mock()
-        review.id = uuid4()
-        review.status = "pending"
-        review.sections = None
-        review.overall_score = None
-        return review
-
-    @pytest.fixture
     def mock_profile(self):
         """Create a mock Profile object."""
         profile = Mock()
@@ -54,7 +43,7 @@ class TestReviewService:
 
     @pytest.mark.asyncio
     async def test_create_review_returns_review_with_pending_status(
-        self, mock_db_session, mock_review, mock_profile
+        self, mock_db_session, mock_profile
     ):
         """Test create_review returns Review with status='pending'."""
         profile_id = uuid4()
@@ -83,15 +72,14 @@ class TestReviewService:
 
     @pytest.mark.asyncio
     async def test_create_review_rejects_profile_not_owned_by_user(self, mock_db_session):
-        """Test create_review raises 404 for a profile not owned by user_id (issue #163)."""
+        """Test create_review returns None for a profile not owned by user_id (issue #163)."""
         profile_id = uuid4()
         user_id = uuid4()
 
         with _patched_get_profile(None):
-            with pytest.raises(HTTPException) as exc_info:
-                await create_review(mock_db_session, profile_id, user_id)
+            result = await create_review(mock_db_session, profile_id, user_id)
 
-            assert exc_info.value.status_code == 404
+            assert result is None
             mock_db_session.add.assert_not_called()
             mock_db_session.commit.assert_not_called()
 
