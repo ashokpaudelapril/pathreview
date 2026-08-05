@@ -194,3 +194,86 @@ unused `mock_review` fixture parameter — fixed, see above; (3) excluding
 replied on the PR explaining this matches CI's own typecheck scope
 (`mypy api/ core/ ingestion/ rag/ agent/ safety/` never checked `tests/`
 either), so no coverage gap versus CI was introduced; left as-is.
+
+## Week 10 — Iteration & reflection
+
+### Reviewer feedback
+
+**Feedback received:** [x] Yes  [ ] No — still awaiting review
+
+**Summary of feedback:**
+No peer/mentor feedback came in through Slack. GitHub Copilot's automated
+reviewer left 3 comments on PR #687 after it was marked ready: (1)
+`create_review()` raised `HTTPException` directly from the service layer,
+which breaks the codebase's own convention — every other service function
+(`get_review`, `get_profile`) returns `None` and lets the route translate
+that into an HTTP response; (2) a test fixture (`mock_review`) was passed
+into a test but never used; (3) excluding `tests/` from the local mypy
+pre-commit hook could hide real type regressions in test code.
+
+**How you responded:**
+Fixed (1) and (2) directly: `create_review()` now returns `None`, and
+`create_review_endpoint()` raises the 404, matching `get_review_endpoint`'s
+existing pattern; removed the now-fully-unused `mock_review` fixture
+entirely rather than just the one parameter. For (3), I didn't just revert
+it — I checked what CI's `typecheck` job actually runs
+(`mypy api/ core/ ingestion/ rag/ agent/ safety/`) and confirmed it never
+covered `tests/` either, so the local hook change didn't introduce a real
+coverage gap versus what the project already enforces. Replied on the PR
+explaining that reasoning instead of silently dropping the exclude. Both
+code fixes are in commit `f988420`; re-ran the integration test afterward
+to confirm the fix still worked end-to-end post-refactor.
+
+---
+
+### Reflection
+
+**What was harder than you expected?**
+Dealing with pre-existing tech debt turned out to be a bigger part of the
+work than the actual fix. The repo already had 182 ruff errors across 52
+files, a mypy setup that outright crashes on this machine's Python
+3.14/numpy combination, and 53 failing unit tests — all before I touched
+anything. Every time I tried to commit, pre-commit's hooks would block on
+errors in files I was editing but hadn't introduced, and it wasn't always
+obvious at a glance whether a given error was mine or already there. I
+didn't expect "prove this isn't my fault" to be a real, recurring task
+alongside writing the fix itself.
+
+**What did you learn about working in a large codebase?**
+That "make check passes" isn't the actual bar in a codebase with ambient
+debt — "my change didn't make it worse" is. That distinction only holds up
+if you can actually prove it, which meant repeatedly diffing before/after
+states instead of eyeballing error counts. I also learned to follow the
+codebase's existing conventions over what felt locally "correct" to me:
+raising an HTTPException straight from the service layer felt natural
+when I wrote it, but it broke a layering pattern the rest of the file
+already used consistently, and Copilot's review caught that immediately.
+
+**How did AI tools help — and where did they fall short?**
+Fastest wins were navigating unfamiliar files, drafting tests that matched
+existing patterns, and catching the service/route layering inconsistency
+once it was pointed out. Where it fell short was exactly the thing that
+mattered most: any claim of the form "this error is pre-existing, not
+something we introduced" had to be independently verified — via
+`git stash` and isolated before/after runs of ruff/mypy/pytest — rather
+than trusted outright. A plausible-sounding claim and a verified one look
+identical until you actually check, so that verification step became the
+real discipline, not a nice-to-have. Bigger judgment calls — bypassing a
+pre-commit hook, opening a PR against the real upstream repo instead of my
+own fork — were ones I had to explicitly decide on, not just delegate.
+
+**What would you do differently if you started over?**
+I'd run `make check` and `make test-unit` on a clean checkout during Week 7,
+before claiming an issue, so I knew the baseline debt existed up front
+instead of discovering it mid-fix during Week 9 under more time pressure.
+I'd also keep Docker Desktop running consistently through the week instead
+of restarting it each session — small friction, but it interrupted my
+verification flow more than once.
+
+**What are you most proud of from this module?**
+Not the PR itself, but how I handled Copilot's review comment about the
+service layer raising `HTTPException`. My first instinct was that it was a
+minor style nitpick, but I actually checked the rest of the file's
+convention before responding, realized it was a real inconsistency, and
+fixed the layering properly instead of dismissing an automated comment.
+That felt like the actual skill this module was trying to teach.
